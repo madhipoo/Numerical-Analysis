@@ -1,0 +1,155 @@
+<html>
+<head>
+<style>
+	#info {
+		position: absolute;
+		top: 0px;
+		width: 100%;
+		padding: 10px;
+		text-align: center;
+		color: #ffff00
+	}
+
+	body {
+	  overflow: hidden;
+	}
+
+</style>
+</head>
+
+<body>
+
+    <div id="info">
+    <br>HW1 
+    <br>two line find point
+	</div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+
+<script>
+
+
+var renderer, scene, camera;
+var points = [];
+var lines = [];
+var a = [];
+var b = [];
+var c = [];
+var click = 0,
+  i = 0,
+  j = 0;
+init();
+animate();
+
+function init() {
+
+  renderer = new THREE.WebGLRenderer();
+  document.body.appendChild(renderer.domElement);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  scene = new THREE.Scene();
+  grid = new THREE.GridHelper(200, 20, 'red', 'white');
+  grid.rotation.x = Math.PI / 2;
+  scene.add(grid);
+
+  camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -10, 10);
+
+  window.addEventListener('resize', onWindowResize, false);
+  document.addEventListener('mousedown', doMouseDown, false);
+
+}
+
+function doMouseDown(event) {
+
+  if (click < 4) {
+    click++;
+    event.preventDefault();
+    let mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    let mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    var dot = new THREE.Mesh(new THREE.CircleGeometry(2, 20), new THREE.MeshBasicMaterial({
+      color: 'cyan'
+    }));
+    scene.add(dot);
+    dot.position.set(mouseX * 100, mouseY * 100, 0);
+
+    var point = new THREE.Vector3(mouseX * 100, mouseY * 100, 0);
+    points.push(point);
+
+    if (points.length == 2) {
+      let line = drawLine(points[0], points[1]);
+      scene.add(line);
+      lines[i] = line;
+      i++;
+      points = [];
+    }
+  }
+}
+
+function drawLine(vec1, vec2) {
+  var abc = findABC(vec1.x, vec1.y, vec2.x, vec2.y);
+  var a = abc[0],
+    b = abc[1],
+    c = abc[2];
+  var vv1, vv2;
+  if(a!=0){
+    vv1 = new THREE.Vector3(
+      (-100 * b - c) / a, 100, 0
+    );
+    vv2 = new THREE.Vector3(
+      (100 * b - c) / a, -100, 0
+    );
+    }
+  else {
+  	vv1 = new THREE.Vector3(
+      100, (-100 * a - c) / b, 0
+    );
+    vv2 = new THREE.Vector3(
+      -100, (100 * a - c) / b, 0
+    );
+  }
+  let geometry = new THREE.Geometry();
+  geometry.vertices.push(vv1, vv2);
+  let line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+    color: 'purple'
+  }));
+  if (j % 2 == 1) {
+    var x = abc[3],
+      y = abc[4];
+    var inter = new THREE.Mesh(new THREE.CircleGeometry(2, 20), new THREE.MeshBasicMaterial({
+      color: 'yellow'
+    }));
+    scene.add(inter);
+    inter.position.set(x, y, 0);
+  }
+  j++;
+  return line;
+}
+
+function findABC(p1, q1, p2, q2) {
+  var x, y;
+  a[j] = q2 - q1;
+  b[j] = p1 - p2;
+  c[j] = -p1 * q2 + p2 * q1;
+  console.log(a[j]+'x + '+b[j]+'y + '+c[j]+'= 0');
+  if (j % 2 == 1) {
+    x = (b[j] * c[j - 1] - b[j - 1] * c[j]) / (a[j] * b[j - 1] - a[j - 1] * b[j]);
+    y = -1 * ((a[j] * c[j - 1] - a[j - 1] * c[j]) / (a[j] * b[j - 1] - a[j - 1] * b[j]));
+    console.log(x + '  , ' + y);
+    return [a[j], b[j], c[j], x, y];
+  } else return [a[j], b[j], c[j]];
+}
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera)
+}
+</script>
+</body>
+</html>
