@@ -1,0 +1,133 @@
+<html>
+<head>
+<style>
+	#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+    }
+
+    body {
+    overflow: hidden;
+    }
+
+</style>
+</head>
+
+<body>
+
+    <div id="info">
+        <br>HW2
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+      
+
+
+<script>
+
+
+    var renderer, scene, camera;
+    var points = [];
+    var lines = [];
+    var pos1 = [],pos2 = [];
+
+    var  i = 0,j = 0;
+    init();
+    animate();
+
+    function init() {
+
+    renderer = new THREE.WebGLRenderer();
+    document.body.appendChild(renderer.domElement);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+
+    scene = new THREE.Scene();
+    grid = new THREE.GridHelper(200, 20, 'red', 'white');
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
+
+    camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -10, 10);
+    ///////////////////////////////////
+    window.addEventListener('resize', onWindowResize, false);
+    document.addEventListener('mousedown', doMouseDown, false);
+
+    }
+
+    function doMouseDown(event) {
+        event.preventDefault();
+        let mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        let mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        // [mouseX, mouseY] in [-1,1]x[-1,1]
+        var dot = new THREE.Mesh(new THREE.CircleGeometry(2, 20), new THREE.MeshBasicMaterial({
+        color: 'cyan'
+        }));
+        scene.add(dot);
+        dot.position.set(mouseX * 100, mouseY * 100, 0);
+
+        var point = new THREE.Vector3(mouseX * 100, mouseY * 100, 0);
+        points.push(point);
+        //console.log (points.length + ' points added');
+        if (points.length == 2) {
+        let line = drawLine(points[0], points[1]);
+        scene.add(line);
+        lines[i] = line;
+        i++;
+        points = [];
+        }
+    
+    }
+
+    function drawLine(vec1, vec2) {
+        pos1[j] = vec1;
+    pos2[j] = vec2;
+    let geometry = new THREE.Geometry();
+    geometry.vertices.push(pos1[j], pos2[j]);
+    let line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        color: 'purple'
+    }));
+    if (j % 2 == 1) {
+            var point = findST(pos1[j-1],pos2[j-1],pos1[j],pos2[j]);
+        //console.log(x+'  , '+ y);
+        var inter = new THREE.Mesh(new THREE.CircleGeometry(2, 20), new THREE.MeshBasicMaterial({
+        color: 'yellow'
+        }));
+        scene.add(inter);
+        inter.position.set(point[0], point[1], 0);
+    }
+    j++;
+    return line;
+    }
+
+    function findST(p1, p2, q1, q2) {
+    var s, t;
+    p1x = p1.x;p1y = p1.y;
+    q1x = q1.x;q1y = q1.y;
+    p2x = p2.x;p2y = p2.y;
+    q2x = q2.x;q2y = q2.y;
+    s=(p1x*(q2y-q1y)+q1x*(p1y-q2y)+(q1y-p1y)*q2x)/(p1x*(q2y-q1y)+p2x*(q1y-q2y)+(p2y-p1y)*q2x+(p1y-p2y)*q1x);
+    t=-(p1x*(q1y-p2y)+p2x*(p1y-q1y)+(p2y-p1y)*q1x)/(p1x*(q2y-q1y)+p2x*(q1y-q2y)+(p2y-p1y)*q2x+(p1y-p2y)*q1x);
+    console.log(s);
+    if((s>=0&&s<=1)&&(t>=0&&t<=1))return [p1x+s*(p2x-p1x),p1y+s*(p2y-p1y)];
+    else return false;
+    }
+
+    function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera)
+    }
+
+</script>
+</body>
+</html>
