@@ -1,0 +1,188 @@
+<html>
+<head>
+<style>
+	#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+    }
+
+    body {
+    overflow: hidden;
+    }
+
+</style>
+</head>
+
+<body>
+
+    <div id="info">HW3 findOBB<button id="reset" style="width:15%">reset</button></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <script type="text/javascript">
+        document.oncontextmenu = function() {
+          return false;
+        }
+    </script>
+
+<script>
+    var camera, scene, renderer;
+    var mouse = new THREE.Vector2();
+    var point;
+    var points = [],pointchange =[],ans;
+    var PCA1,PCA2 = new THREE.Vector2();
+    var halfSize = 50;
+    var count = 1;
+    var meanX,meanY;
+    init();
+    animate();
+
+    $('#reset').click (function() {
+        scene.remove (scene.getObjectByName ('aabb'));  
+    points.forEach (function(point) {
+        scene.remove(point)
+    })
+    pointchange =[];
+    points=[];
+    })
+    function init() {
+    renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+    document.body.appendChild(renderer.domElement);
+
+    scene = new THREE.Scene();
+    camera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, -10, 100);
+    camera.position.z = 10;
+
+    point = new THREE.Mesh(new THREE.CircleGeometry(1.5, 12), new THREE.MeshBasicMaterial());
+    window.addEventListener('resize', onWindowResize, false);
+    window.addEventListener('mousedown', onDocumentMouseDown, false);
+    ////////////////////////
+    
+}
+
+    function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function onDocumentMouseDown(event) {
+    event.preventDefault();
+    // NDC: [-1,1]x[-1,1]
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    //console.log(mouse.x + ', ' + mouse.y);
+    count++;
+    // right button
+    let pp = point.clone(),i;
+    var meanx = 0,meany = 0;
+    var covxx = 0,covxy = 0,covyy = 0;
+    scene.add(pp);
+    pp.position.set(mouse.x*halfSize,mouse.y*halfSize,0);
+    points.push(pp);
+    for(i = 0;i<points.length;i++){
+        meanx += points[i].position.x;
+        meany += points[i].position.y;
+    }
+    meanx /=i;
+    meany /=i;
+    meanX = meanx;
+    meanY = meany;
+    for(i = 0;i<points.length;i++){
+        covxx += (points[i].position.x-meanx)*(points[i].position.x-meanx);
+        covxy += (points[i].position.x-meanx)*(points[i].position.y-meany);
+        covyy += (points[i].position.y-meany)*(points[i].position.y-meany); 
+    }
+    var A = [  
+        [covxx/i,covxy/i],
+        [covxy/i,covyy/i]
+    ]
+    var ev = numeric.eig(A);
+    //console.log(ev)
+    if(ev.lambda.x[0]>ev.lambda.x[1]){
+        if(ev.E.x[0][0]<0)PCA1 = new THREE.Vector3(-1*ev.E.x[0][0],-1*ev.E.x[1][0]);
+        else PCA1 = new THREE.Vector3(ev.E.x[0][0],ev.E.x[1][0]);
+    }
+    else{
+        if(ev.E.x[0][1]<0)PCA1 = new THREE.Vector3(-1*ev.E.x[0][1],-1*ev.E.x[1][1]);
+        else PCA1 = new THREE.Vector3(-1*ev.E.x[0][1],-1*ev.E.x[1][1]);
+    } 
+    let Z = new THREE.Vector3(0,0,1);
+    let n = new THREE.Vector3();
+    PCA2 = Z.cross(PCA1.clone().normalize());
+
+    normal = (PCA1.x*PCA2.y)-(PCA2.x*PCA1.y);
+    
+    for(let i = 0;i<points.length;i++){
+        n.x =(PCA2.y/normal)*(points[i].position.x - meanx) + (-PCA2.x/normal)*(points[i].position.y - meany);
+        n.y = (-PCA1.y/normal)*(points[i].position.x - meanx) + (PCA1.x/normal)*(points[i].position.y - meany);
+        if(n.y<0.000001&&n.y>-0.000001)n.y=0;
+        if(n.x<0.000001&&n.x>-0.000001)n.x=0;
+        pointchange.push(new THREE.Vector3(n.x,n.y,0));
+    }
+    makeAABB();
+    }
+    function makeAABB(){
+    scene.remove (scene.getObjectByName ('aabb'));  
+    let minX = 1e3,
+        maxX = -1e3;
+    let minY = 1e3,
+        maxY = -1e3;
+    for (let i = 0; i < pointchange.length; i++) {
+        if (pointchange[i].x < minX)
+        minX = pointchange[i].x;
+        if (pointchange[i].x > maxX)
+        maxX = pointchange[i].x;
+        if (pointchange[i].y < minY)
+        minY = pointchange[i].y;
+        if (pointchange[i].y > maxY)
+        maxY = pointchange[i].y;
+        
+    }
+    let aabb = drawBox ([minX,minY],[maxX,minY],[maxX,maxY],[minX,maxY], 'red');
+    aabb.name = 'aabb'
+    scene.add (aabb);
+    }
+    function drawBox(p1, p2, p3, p4, lineColor='blue') {
+    let temp = [p1[0],p2[0],p3[0],p4[0]];
+
+    p1[0] = (PCA1.x*temp[0]+PCA2.x*p1[1]) + meanX;
+    p1[1] = (PCA1.y*temp[0]+PCA2.y*p1[1]) + meanY;
+    p2[0] = (PCA1.x*temp[1]+PCA2.x*p2[1]) + meanX;
+    p2[1] = (PCA1.y*temp[1]+PCA2.y*p2[1]) + meanY;
+    p3[0] = (PCA1.x*temp[2]+PCA2.x*p3[1]) + meanX;
+    p3[1] = (PCA1.y*temp[2]+PCA2.y*p3[1]) + meanY;
+    p4[0] = (PCA1.x*temp[3]+PCA2.x*p4[1]) + meanX;
+    p4[1] = (PCA1.y*temp[3]+PCA2.y*p4[1]) + meanY;
+    var geometry = new THREE.Geometry();
+    geometry.vertices.push(
+        new THREE.Vector3(p1[0], p1[1], 0),
+        new THREE.Vector3(p2[0], p2[1], 0),
+        new THREE.Vector3(p3[0], p3[1], 0),
+        new THREE.Vector3(p4[0], p4[1], 0),
+        new THREE.Vector3(p1[0], p1[1], 0));
+
+    let border = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        color: lineColor
+    }));
+    return border;
+    }
+
+    function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    }
+</script>
+</body>
+</html>
